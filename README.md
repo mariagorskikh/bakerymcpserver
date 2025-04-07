@@ -8,7 +8,7 @@ A Model Context Protocol (MCP) server that wraps the Bakery API for Claude, prov
 - Provides chat functionality via a prompt interface
 - Exposes `fetchWebsite` tool for retrieving web content
 - Includes `RequestBakery` tool for direct message passing
-- Supports both local and ngrok-exposed deployments
+- Supports deployment on Railway
 
 ## Deployment on Railway
 
@@ -28,7 +28,6 @@ A Model Context Protocol (MCP) server that wraps the Bakery API for Claude, prov
 
 2. **Environment Variables**:
    - `PORT`: Port for the HTTP server (default: 3000)
-   - `NGROK_AUTH_TOKEN`: (Optional) Your ngrok authentication token for exposing the server
 
 3. **Health Check URL**: `/health`
 
@@ -43,9 +42,6 @@ npm run build
 
 # Start the local server
 npm run start:http
-
-# Start with ngrok
-npm run start:ngrok
 ```
 
 ## Using the MCP Inspector

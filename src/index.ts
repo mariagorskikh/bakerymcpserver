@@ -4,7 +4,6 @@ import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import fetch from "node-fetch";
 import { z } from "zod";
 import express from "express";
-import ngrok from "ngrok";
 
 // Define the bakery client API URL
 const BAKERY_API_URL = "https://bakery-client-production.up.railway.app";
@@ -211,7 +210,6 @@ async function startStdioServer() {
 async function startHttpServer() {
   const app = express();
   const PORT = process.env.PORT || 3000;
-  const useNgrok = process.argv.includes('--ngrok');
   
   // To support multiple simultaneous connections we have a lookup object from sessionId to transport
   const transports: Record<string, SSEServerTransport> = {};
@@ -337,33 +335,11 @@ async function startHttpServer() {
   const httpServer = app.listen(PORT, async () => {
     console.log(`HTTP server listening on port ${PORT}`);
     console.log(`Visit http://localhost:${PORT} for more information`);
-    
-    // Connect to ngrok if requested
-    if (useNgrok) {
-      try {
-        const url = await ngrok.connect({
-          addr: PORT,
-          // The ngrok.Region type includes 'us', 'eu', 'au', 'ap', 'sa', 'jp', and 'in'
-          region: (process.env.NGROK_REGION || 'us') as 'us' | 'eu' | 'au' | 'ap' | 'sa' | 'jp' | 'in',
-          authtoken: process.env.NGROK_AUTH_TOKEN
-        });
-        console.log(`🚀 Server is now exposed at: ${url}`);
-        console.log(`SSE Endpoint: ${url}/sse`);
-        console.log(`Message Endpoint: ${url}/messages?sessionId=SESSION_ID`);
-      } catch (error) {
-        console.error('Failed to connect to ngrok:', error);
-        console.log('To use ngrok, sign up at https://ngrok.com and set your authtoken:');
-        console.log('export NGROK_AUTH_TOKEN=your_auth_token');
-      }
-    }
   });
   
   // Handle server shutdown
   process.on('SIGINT', async () => {
     console.log('Shutting down server...');
-    if (useNgrok) {
-      await ngrok.kill();
-    }
     httpServer.close();
     process.exit(0);
   });
