@@ -1,14 +1,22 @@
-# Bakery MCP Server
+# Flour Bakery Gateway
 
-A Model Context Protocol (MCP) server that wraps the Bakery API for Claude, providing a standardized interface for AI interactions.
+A Model Context Protocol (MCP) server that provides a standardized interface for interacting with the Flour Bakery API for Claude capabilities.
 
 ## Features
 
 - Implements the Model Context Protocol specification
-- Provides chat functionality via a prompt interface
-- Exposes `fetchWebsite` tool for retrieving web content
-- Includes `RequestBakery` tool for direct message passing
+- Provides the `BakeryRequest` tool as the primary interface to Flour Bakery
+- Includes standard chat functionality via a prompt interface
 - Supports deployment on Railway
+
+## Core Capability: BakeryRequest Tool
+
+The `BakeryRequest` tool is the central feature of this MCP server. It provides:
+
+- Direct access to Flour Bakery for processing any request
+- Simple interface that accepts a prompt parameter
+- Ability to leverage all of Claude's capabilities
+- Automatic session management
 
 ## Deployment on Railway
 
@@ -58,8 +66,7 @@ npx @modelcontextprotocol/inspector connect url https://your-railway-url/sse
 - `chat`: General conversation with Claude
 
 ### Tools
-- `fetchWebsite`: Retrieves content from a specified URL
-- `RequestBakery`: Direct interface to Bakery API (alternative to chat prompt)
+- `BakeryRequest`: Primary interface to send any prompt to the Flour Bakery
 
 ## API Endpoints
 

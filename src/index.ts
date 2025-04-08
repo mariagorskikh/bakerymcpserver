@@ -10,7 +10,7 @@ const BAKERY_API_URL = "https://bakery-client-production.up.railway.app";
 
 // Create a new MCP server
 const server = new McpServer({
-  name: "bakery-client-wrapper",
+  name: "Flour Bakery Gateway",
   version: "1.0.0",
 });
 
@@ -68,18 +68,22 @@ server.prompt(
   }
 );
 
-// Define a tool to fetch a website through the bakery client
+// Define the main bakery request tool - central interface to the Flour Bakery API
 server.tool(
-  "fetchWebsite",
-  { url: z.string().url() },
-  async ({ url }) => {
+  "BakeryRequest",
+  {
+    prompt: z.string().describe("The prompt or request to send to the Flour Bakery. This can be any question, instruction, or request for content processing."),
+  },
+  async ({ prompt }) => {
     // Ensure we have an active session
     if (!sessions.currentSessionId) {
       await initSession();
     }
 
     try {
-      // Send message to use the fetchWebsite tool
+      console.log(`Sending request to Flour Bakery: "${prompt.substring(0, 50)}${prompt.length > 50 ? '...' : ''}"`);
+      
+      // Send request to the Flour Bakery API
       const response = await fetch(`${BAKERY_API_URL}/api/chat`, {
         method: "POST",
         headers: {
@@ -87,11 +91,12 @@ server.tool(
         },
         body: JSON.stringify({
           sessionId: sessions.currentSessionId,
-          message: `Please use the fetchWebsite tool to get the content from ${url}`,
+          message: prompt,
         }),
       });
 
       const data = await response.json() as { response: string; toolUsed: string | null };
+      console.log(`Response received from Flour Bakery${data.toolUsed ? ` (used tool: ${data.toolUsed})` : ''}`);
 
       return {
         content: [
@@ -100,62 +105,17 @@ server.tool(
             text: data.response,
           },
         ],
+        metadata: {
+          toolUsed: data.toolUsed
+        }
       };
     } catch (error) {
-      console.error("Error fetching website:", error);
+      console.error("Error processing request with Flour Bakery:", error);
       return {
         content: [
           {
             type: "text",
-            text: `Error fetching website: ${error}`,
-          },
-        ],
-        isError: true,
-      };
-    }
-  }
-);
-
-// Define a tool for direct requests to the bakery client
-server.tool(
-  "RequestBakery",
-  { text: z.string() },
-  async ({ text }) => {
-    // Ensure we have an active session
-    if (!sessions.currentSessionId) {
-      await initSession();
-    }
-
-    try {
-      // Send message directly to the bakery client API
-      const response = await fetch(`${BAKERY_API_URL}/api/chat`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          sessionId: sessions.currentSessionId,
-          message: text,
-        }),
-      });
-
-      const data = await response.json() as { response: string; toolUsed: string | null };
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: data.response + (data.toolUsed ? `\n\n(Tool used: ${data.toolUsed})` : ""),
-          },
-        ],
-      };
-    } catch (error) {
-      console.error("Error sending message to bakery client:", error);
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error communicating with Claude: ${error}`,
+            text: `Error communicating with Flour Bakery: ${error}`,
           },
         ],
         isError: true,
@@ -181,15 +141,15 @@ async function initSession(): Promise<void> {
     
     if (data.message === "Session initialized successfully") {
       sessions.currentSessionId = sessionId;
-      console.log(`Initialized session: ${sessionId}`);
+      console.log(`Initialized session with Flour Bakery: ${sessionId}`);
       
       // Log available tools from the bakery client
-      console.log("Available tools:", data.tools);
+      console.log("Available Flour Bakery tools:", data.tools);
     } else {
-      throw new Error("Failed to initialize session");
+      throw new Error("Failed to initialize session with Flour Bakery");
     }
   } catch (error) {
-    console.error("Error initializing session:", error);
+    console.error("Error initializing session with Flour Bakery:", error);
     throw new Error(`Failed to initialize session: ${error}`);
   }
 }
@@ -197,12 +157,12 @@ async function initSession(): Promise<void> {
 // Start the MCP server using stdio transport (default for Claude Desktop)
 async function startStdioServer() {
   try {
-    console.log("Starting MCP server with stdio transport...");
+    console.log("Starting Flour Bakery Gateway with stdio transport...");
     const transport = new StdioServerTransport();
     await server.connect(transport);
-    console.log("MCP server connected!");
+    console.log("Flour Bakery Gateway connected!");
   } catch (error) {
-    console.error("Error starting MCP server:", error);
+    console.error("Error starting Flour Bakery Gateway:", error);
   }
 }
 
@@ -219,7 +179,7 @@ async function startHttpServer() {
     res.send(`
       <html>
         <head>
-          <title>MCP Bakery Client Wrapper</title>
+          <title>Flour Bakery Gateway</title>
           <style>
             body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
             h1 { color: #333; }
@@ -229,12 +189,18 @@ async function startHttpServer() {
           </style>
         </head>
         <body>
-          <h1>MCP Bakery Client Wrapper</h1>
-          <p>This is a simple MCP server that wraps the bakery client API.</p>
+          <h1>Flour Bakery Gateway</h1>
+          <p>This MCP server provides access to the Flour Bakery API through the Model Context Protocol.</p>
           <p>To use with MCP clients, connect to:</p>
           <ul>
-            <li>SSE Endpoint: <code>http://localhost:${PORT}/sse</code></li>
-            <li>Message Endpoint: <code>http://localhost:${PORT}/messages?sessionId=SESSION_ID</code></li>
+            <li>SSE Endpoint: <code>${process.env.RAILWAY_STATIC_URL || `http://localhost:${PORT}`}/sse</code></li>
+            <li>Message Endpoint: <code>${process.env.RAILWAY_STATIC_URL || `http://localhost:${PORT}`}/messages?sessionId=SESSION_ID</code></li>
+          </ul>
+          
+          <h2>Available Capabilities</h2>
+          <ul>
+            <li><strong>BakeryRequest Tool</strong>: Send any prompt to the Flour Bakery for processing</li>
+            <li><strong>Chat Prompt</strong>: Standard conversational interface with Claude</li>
           </ul>
           
           <button id="connectBtn">Test SSE Connection</button>
@@ -333,8 +299,9 @@ async function startHttpServer() {
   
   // Start the HTTP server
   const httpServer = app.listen(PORT, async () => {
-    console.log(`HTTP server listening on port ${PORT}`);
-    console.log(`Visit http://localhost:${PORT} for more information`);
+    console.log(`Flour Bakery Gateway listening on port ${PORT}`);
+    const publicUrl = process.env.RAILWAY_STATIC_URL || `http://localhost:${PORT}`;
+    console.log(`Visit ${publicUrl} for more information`);
   });
   
   // Handle server shutdown
@@ -351,9 +318,9 @@ const serverMode = args[0] || 'stdio';
 
 // Start the server in the appropriate mode
 if (serverMode === 'http') {
-  console.log("Starting in HTTP/SSE server mode");
+  console.log("Starting Flour Bakery Gateway in HTTP/SSE server mode");
   startHttpServer();
 } else {
-  console.log("Starting in stdio server mode (default)");
+  console.log("Starting Flour Bakery Gateway in stdio server mode (default)");
   startStdioServer();
 } 
