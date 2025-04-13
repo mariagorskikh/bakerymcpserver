@@ -21,13 +21,29 @@ const sessions: Record<string, string> = {};
 server.prompt(
   "chat",
   { message: z.string() },
-  async ({ message }) => {
-    // Generate a unique session ID if needed
-    if (!sessions.currentSessionId) {
-      await initSession();
+  async ({ message }, context) => {
+    const sessionId = context.sessionId;
+    if (!sessionId) {
+        // This case should ideally not happen if the MCP client is compliant
+        console.error("Session ID missing in chat prompt context!");
+        return {
+            messages: [{ role: "assistant", content: { type: "text", text: "Internal error: Missing session ID."}}]
+        };
+    }
+    
+    // Check if this session needs initialization with the downstream client
+    try {
+      if (!sessions[sessionId]) {
+        await initSession(sessionId); // Pass sessionId to init function
+      }
+    } catch (initError) {
+        console.error(`Failed to initialize session ${sessionId} for chat:`, initError);
+        return {
+            messages: [{ role: "assistant", content: { type: "text", text: "Sorry, I couldn't prepare the chat session."}}]
+        };
     }
 
-    // Send message to the bakery client API
+    // Send message to the bakery client API using the correct sessionId
     try {
       const response = await fetch(`${BAKERY_API_URL}/api/chat`, {
         method: "POST",
@@ -35,14 +51,37 @@ server.prompt(
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          sessionId: sessions.currentSessionId,
+          sessionId: sessionId, // Use the sessionId from context
           message,
         }),
       });
 
-      const data = await response.json() as { response: string; toolUsed: string | null };
+      // Check for non-OK response first
+      if (!response.ok) {
+        const errorBody = await response.text();
+        console.error(`Error from bakery client API (${response.status}): ${errorBody}`);
+        // Return user-facing error message
+        return {
+             messages: [{ role: "assistant", content: { type: "text", text: `Sorry, there was an issue communicating with the bakery service (Status: ${response.status}).`}}]
+        };
+      }
 
-      // Return the response as a message
+      // Now parse the JSON
+      const data = await response.json() as { response?: string; toolUsed?: string | null; error?: string };
+      
+      // Check if the bakery client returned an application-level error
+      if (data.error) {
+        console.error(`Error message from bakery client: ${data.error}`);
+        // Return user-facing error message
+        return {
+             messages: [{ role: "assistant", content: { type: "text", text: `Sorry, the bakery service reported an error: ${data.error}`}}]
+        };
+      }
+      
+      // Ensure data.response exists before using it
+      const responseText = data.response ?? "(No response text received)";
+
+      // Return the successful response as messages
       return {
         messages: [
           {
@@ -56,14 +95,17 @@ server.prompt(
             role: "assistant",
             content: {
               type: "text",
-              text: data.response + (data.toolUsed ? `\n\n(Tool used: ${data.toolUsed})` : ""),
+              text: responseText + (data.toolUsed ? `\n\n(Tool used: ${data.toolUsed})` : ""),
             },
           },
         ],
       };
     } catch (error) {
       console.error("Error sending message to bakery client:", error);
-      throw new Error(`Failed to chat with Claude: ${error}`);
+      // Return user-facing error message for unexpected errors
+      return {
+           messages: [{ role: "assistant", content: { type: "text", text: `Sorry, an unexpected error occurred while processing your chat message.`}}]
+      };
     }
   }
 );
@@ -74,35 +116,76 @@ server.tool(
   {
     prompt: z.string().describe("The prompt or request to send to the Flour Bakery. This can be any question, instruction, or request for content processing."),
   },
-  async ({ prompt }) => {
-    // Ensure we have an active session
-    if (!sessions.currentSessionId) {
-      await initSession();
+  async ({ prompt }, context) => {
+    const sessionId = context.sessionId;
+    if (!sessionId) {
+        throw new Error("Session ID is missing from the context.");
+    }
+
+    // Ensure this session is initialized with the downstream client
+    if (!sessions[sessionId]) {
+      await initSession(sessionId); // Pass sessionId
     }
 
     try {
       console.log(`Sending request to Flour Bakery: "${prompt.substring(0, 50)}${prompt.length > 50 ? '...' : ''}"`);
       
-      // Send request to the Flour Bakery API
+      // Send request to the Flour Bakery API using the correct sessionId
       const response = await fetch(`${BAKERY_API_URL}/api/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          sessionId: sessions.currentSessionId,
+          sessionId: sessionId, // Use sessionId from context
           message: prompt,
         }),
       });
+      
+      // Check for non-OK response first
+      if (!response.ok) {
+        const errorBody = await response.text();
+        console.error(`Error from bakery client API (${response.status}): ${errorBody}`);
+        // Return an MCP-compliant error structure
+        return {
+          content: [
+            { type: "text", text: `Error communicating with Flour Bakery: Status ${response.status}` },
+          ],
+          isError: true,
+        };
+      }
 
-      const data = await response.json() as { response: string; toolUsed: string | null };
+      // Now parse the JSON
+      const data = await response.json() as { response?: string; toolUsed?: string | null; error?: string };
       console.log(`Response received from Flour Bakery${data.toolUsed ? ` (used tool: ${data.toolUsed})` : ''}`);
+      
+      // Check if the bakery client returned an application-level error
+      if (data.error) {
+        console.error(`Error message from bakery client: ${data.error}`);
+        return {
+          content: [
+            { type: "text", text: `Bakery client reported an error: ${data.error}` },
+          ],
+          isError: true,
+        };
+      }
+      
+      // Ensure data.response exists
+      if (typeof data.response !== 'string') {
+          console.error(`Invalid response structure from bakery client: 'response' field is missing or not a string.`);
+          return {
+              content: [
+                  { type: "text", text: "Received an invalid response structure from the bakery service." },
+              ],
+              isError: true,
+          };
+      }
 
       return {
         content: [
           {
             type: "text",
-            text: data.response,
+            text: data.response, // Now safely access data.response
           },
         ],
         metadata: {
@@ -125,10 +208,8 @@ server.tool(
 );
 
 // Helper function to initialize a session
-async function initSession(): Promise<void> {
+async function initSession(sessionId: string): Promise<void> {
   try {
-    const sessionId = `mcp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    
     const response = await fetch(`${BAKERY_API_URL}/api/init`, {
       method: "POST",
       headers: {
@@ -140,7 +221,7 @@ async function initSession(): Promise<void> {
     const data = await response.json() as { message: string; tools: any[] };
     
     if (data.message === "Session initialized successfully") {
-      sessions.currentSessionId = sessionId;
+      sessions[sessionId] = sessionId;
       console.log(`Initialized session with Flour Bakery: ${sessionId}`);
       
       // Log available tools from the bakery client
