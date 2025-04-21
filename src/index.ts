@@ -5,12 +5,12 @@ import fetch from "node-fetch";
 import { z } from "zod";
 import express from "express";
 
-// Define the bakery client API URL
-const BAKERY_API_URL = "https://bakery-client-production.up.railway.app";
+// Define the insurance client API URL
+const INSURANCE_API_URL = "https://bakery-client-production.up.railway.app";
 
 // Create a new MCP server
 const server = new McpServer({
-  name: "Flour Bakery Gateway",
+  name: "Health Shield Insurance Gateway",
   version: "1.0.0",
 });
 
@@ -43,9 +43,9 @@ server.prompt(
         };
     }
 
-    // Send message to the bakery client API using the correct sessionId
+    // Send message to the insurance client API using the correct sessionId
     try {
-      const response = await fetch(`${BAKERY_API_URL}/api/chat`, {
+      const response = await fetch(`${INSURANCE_API_URL}/api/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -59,22 +59,22 @@ server.prompt(
       // Check for non-OK response first
       if (!response.ok) {
         const errorBody = await response.text();
-        console.error(`Error from bakery client API (${response.status}): ${errorBody}`);
+        console.error(`Error from insurance client API (${response.status}): ${errorBody}`);
         // Return user-facing error message
         return {
-             messages: [{ role: "assistant", content: { type: "text", text: `Sorry, there was an issue communicating with the bakery service (Status: ${response.status}).`}}]
+             messages: [{ role: "assistant", content: { type: "text", text: `Sorry, there was an issue communicating with the insurance service (Status: ${response.status}).`}}]
         };
       }
 
       // Now parse the JSON
       const data = await response.json() as { response?: string; toolUsed?: string | null; error?: string };
       
-      // Check if the bakery client returned an application-level error
+      // Check if the insurance client returned an application-level error
       if (data.error) {
-        console.error(`Error message from bakery client: ${data.error}`);
+        console.error(`Error message from insurance client: ${data.error}`);
         // Return user-facing error message
         return {
-             messages: [{ role: "assistant", content: { type: "text", text: `Sorry, the bakery service reported an error: ${data.error}`}}]
+             messages: [{ role: "assistant", content: { type: "text", text: `Sorry, the insurance service reported an error: ${data.error}`}}]
         };
       }
       
@@ -101,7 +101,7 @@ server.prompt(
         ],
       };
     } catch (error) {
-      console.error("Error sending message to bakery client:", error);
+      console.error("Error sending message to insurance client:", error);
       // Return user-facing error message for unexpected errors
       return {
            messages: [{ role: "assistant", content: { type: "text", text: `Sorry, an unexpected error occurred while processing your chat message.`}}]
@@ -110,11 +110,11 @@ server.prompt(
   }
 );
 
-// Define the main bakery request tool - central interface to the Flour Bakery API
+// Define the main insurance request tool - central interface to the Health Shield Insurance API
 server.tool(
-  "BakeryRequest",
+  "InsuranceRequest",
   {
-    prompt: z.string().describe("The prompt or request to send to the Flour Bakery. This can be any question, instruction, or request for content processing."),
+    prompt: z.string().describe("The prompt or request to send to Health Shield Insurance. This can be any question, instruction, or request for health insurance information."),
   },
   async ({ prompt }, context) => {
     const sessionId = context.sessionId;
@@ -128,10 +128,10 @@ server.tool(
     }
 
     try {
-      console.log(`Sending request to Flour Bakery: "${prompt.substring(0, 50)}${prompt.length > 50 ? '...' : ''}"`);
+      console.log(`Sending request to Health Shield Insurance: "${prompt.substring(0, 50)}${prompt.length > 50 ? '...' : ''}"`);
       
-      // Send request to the Flour Bakery API using the correct sessionId
-      const response = await fetch(`${BAKERY_API_URL}/api/chat`, {
+      // Send request to the Insurance API using the correct sessionId
+      const response = await fetch(`${INSURANCE_API_URL}/api/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -145,11 +145,11 @@ server.tool(
       // Check for non-OK response first
       if (!response.ok) {
         const errorBody = await response.text();
-        console.error(`Error from bakery client API (${response.status}): ${errorBody}`);
+        console.error(`Error from insurance client API (${response.status}): ${errorBody}`);
         // Return an MCP-compliant error structure
         return {
           content: [
-            { type: "text", text: `Error communicating with Flour Bakery: Status ${response.status}` },
+            { type: "text", text: `Error communicating with Health Shield Insurance: Status ${response.status}` },
           ],
           isError: true,
         };
@@ -157,14 +157,14 @@ server.tool(
 
       // Now parse the JSON
       const data = await response.json() as { response?: string; toolUsed?: string | null; error?: string };
-      console.log(`Response received from Flour Bakery${data.toolUsed ? ` (used tool: ${data.toolUsed})` : ''}`);
+      console.log(`Response received from Health Shield Insurance${data.toolUsed ? ` (used tool: ${data.toolUsed})` : ''}`);
       
-      // Check if the bakery client returned an application-level error
+      // Check if the insurance client returned an application-level error
       if (data.error) {
-        console.error(`Error message from bakery client: ${data.error}`);
+        console.error(`Error message from insurance client: ${data.error}`);
         return {
           content: [
-            { type: "text", text: `Bakery client reported an error: ${data.error}` },
+            { type: "text", text: `Insurance client reported an error: ${data.error}` },
           ],
           isError: true,
         };
@@ -172,10 +172,10 @@ server.tool(
       
       // Ensure data.response exists
       if (typeof data.response !== 'string') {
-          console.error(`Invalid response structure from bakery client: 'response' field is missing or not a string.`);
+          console.error(`Invalid response structure from insurance client: 'response' field is missing or not a string.`);
           return {
               content: [
-                  { type: "text", text: "Received an invalid response structure from the bakery service." },
+                  { type: "text", text: "Received an invalid response structure from the insurance service." },
               ],
               isError: true,
           };
@@ -193,12 +193,12 @@ server.tool(
         }
       };
     } catch (error) {
-      console.error("Error processing request with Flour Bakery:", error);
+      console.error("Error processing request with Health Shield Insurance:", error);
       return {
         content: [
           {
             type: "text",
-            text: `Error communicating with Flour Bakery: ${error}`,
+            text: `Error communicating with Health Shield Insurance: ${error}`,
           },
         ],
         isError: true,
@@ -210,7 +210,7 @@ server.tool(
 // Helper function to initialize a session
 async function initSession(sessionId: string): Promise<void> {
   try {
-    const response = await fetch(`${BAKERY_API_URL}/api/init`, {
+    const response = await fetch(`${INSURANCE_API_URL}/api/init`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -222,15 +222,15 @@ async function initSession(sessionId: string): Promise<void> {
     
     if (data.message === "Session initialized successfully") {
       sessions[sessionId] = sessionId;
-      console.log(`Initialized session with Flour Bakery: ${sessionId}`);
+      console.log(`Initialized session with Health Shield Insurance: ${sessionId}`);
       
-      // Log available tools from the bakery client
-      console.log("Available Flour Bakery tools:", data.tools);
+      // Log available tools from the insurance client
+      console.log("Available Health Shield Insurance tools:", data.tools);
     } else {
-      throw new Error("Failed to initialize session with Flour Bakery");
+      throw new Error("Failed to initialize session with Health Shield Insurance");
     }
   } catch (error) {
-    console.error("Error initializing session with Flour Bakery:", error);
+    console.error("Error initializing session with Health Shield Insurance:", error);
     throw new Error(`Failed to initialize session: ${error}`);
   }
 }
@@ -238,12 +238,12 @@ async function initSession(sessionId: string): Promise<void> {
 // Start the MCP server using stdio transport (default for Claude Desktop)
 async function startStdioServer() {
   try {
-    console.log("Starting Flour Bakery Gateway with stdio transport...");
+    console.log("Starting Health Shield Insurance Gateway with stdio transport...");
     const transport = new StdioServerTransport();
     await server.connect(transport);
-    console.log("Flour Bakery Gateway connected!");
+    console.log("Health Shield Insurance Gateway connected!");
   } catch (error) {
-    console.error("Error starting Flour Bakery Gateway:", error);
+    console.error("Error starting Health Shield Insurance Gateway:", error);
   }
 }
 
@@ -260,7 +260,7 @@ async function startHttpServer() {
     res.send(`
       <html>
         <head>
-          <title>Flour Bakery Gateway</title>
+          <title>Health Shield Insurance Gateway</title>
           <style>
             body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
             h1 { color: #333; }
@@ -270,8 +270,8 @@ async function startHttpServer() {
           </style>
         </head>
         <body>
-          <h1>Flour Bakery Gateway</h1>
-          <p>This MCP server provides access to the Flour Bakery API through the Model Context Protocol.</p>
+          <h1>Health Shield Insurance Gateway</h1>
+          <p>This MCP server provides access to the Health Shield Insurance API through the Model Context Protocol.</p>
           <p>To use with MCP clients, connect to:</p>
           <ul>
             <li>SSE Endpoint: <code>${process.env.RAILWAY_STATIC_URL || `http://localhost:${PORT}`}/sse</code></li>
@@ -280,7 +280,7 @@ async function startHttpServer() {
           
           <h2>Available Capabilities</h2>
           <ul>
-            <li><strong>BakeryRequest Tool</strong>: Send any prompt to the Flour Bakery for processing</li>
+            <li><strong>InsuranceRequest Tool</strong>: Send any prompt to Health Shield Insurance for processing</li>
             <li><strong>Chat Prompt</strong>: Standard conversational interface with Claude</li>
           </ul>
           
@@ -380,7 +380,7 @@ async function startHttpServer() {
   
   // Start the HTTP server
   const httpServer = app.listen(PORT, async () => {
-    console.log(`Flour Bakery Gateway listening on port ${PORT}`);
+    console.log(`Health Shield Insurance Gateway listening on port ${PORT}`);
     const publicUrl = process.env.RAILWAY_STATIC_URL || `http://localhost:${PORT}`;
     console.log(`Visit ${publicUrl} for more information`);
   });
@@ -399,9 +399,9 @@ const serverMode = args[0] || 'stdio';
 
 // Start the server in the appropriate mode
 if (serverMode === 'http') {
-  console.log("Starting Flour Bakery Gateway in HTTP/SSE server mode");
+  console.log("Starting Health Shield Insurance Gateway in HTTP/SSE server mode");
   startHttpServer();
 } else {
-  console.log("Starting Flour Bakery Gateway in stdio server mode (default)");
+  console.log("Starting Health Shield Insurance Gateway in stdio server mode (default)");
   startStdioServer();
 } 

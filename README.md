@@ -1,19 +1,19 @@
-# Flour Bakery Gateway
+# Health Shield Insurance Gateway
 
-A Model Context Protocol (MCP) server that provides a standardized interface for interacting with the Flour Bakery API for Claude capabilities.
+A Model Context Protocol (MCP) server that provides a standardized interface for interacting with the Health Shield Insurance API for Claude capabilities.
 
 ## Features
 
 - Implements the Model Context Protocol specification
-- Provides the `BakeryRequest` tool as the primary interface to Flour Bakery
+- Provides the `InsuranceRequest` tool as the primary interface to Health Shield Insurance
 - Includes standard chat functionality via a prompt interface
 - Supports deployment on Railway
 
-## Core Capability: BakeryRequest Tool
+## Core Capability: InsuranceRequest Tool
 
-The `BakeryRequest` tool is the central feature of this MCP server. It provides:
+The `InsuranceRequest` tool is the central feature of this MCP server. It provides:
 
-- Direct access to Flour Bakery for processing any request
+- Direct access to Health Shield Insurance for processing any request
 - Simple interface that accepts a prompt parameter
 - Ability to leverage all of Claude's capabilities
 - Automatic session management
@@ -66,7 +66,7 @@ npx @modelcontextprotocol/inspector connect url https://your-railway-url/sse
 - `chat`: General conversation with Claude
 
 ### Tools
-- `BakeryRequest`: Primary interface to send any prompt to the Flour Bakery
+- `InsuranceRequest`: Primary interface to send any prompt to Health Shield Insurance
 
 ## API Endpoints
 

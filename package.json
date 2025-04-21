@@ -1,7 +1,7 @@
 {
-  "name": "mcp-simple-server-wrapper",
+  "name": "health-shield-insurance-server",
   "version": "1.0.0",
-  "description": "A simple MCP server wrapper for the bakery-client API",
+  "description": "A Model Context Protocol server for the Health Shield Insurance API",
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
@@ -15,7 +15,7 @@
   "keywords": [
     "mcp",
     "claude",
-    "bakery-client"
+    "health-shield-insurance"
   ],
   "author": "",
   "license": "ISC",
